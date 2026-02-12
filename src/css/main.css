@@ -222,3 +222,37 @@ nav>a>img {
     border-radius: 100%;
     background: white;
 }
+
+/* Loading and Error States */
+.loading,
+.error {
+    text-align: center;
+    padding: 2rem;
+    color: #fff;
+    font-size: 1.2rem;
+}
+
+.error {
+    color: #ff6b6b;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: #fff;
+    font-size: 1.2rem;
+}
+
+/* Screen Reader Only */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
