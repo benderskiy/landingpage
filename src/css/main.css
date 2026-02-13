@@ -820,26 +820,43 @@ nav a:focus-visible,
 
 /* ===== SortableJS Drag & Drop Styles ===== */
 
-/* Chosen element (original element being dragged - hide it) */
+/* Chosen element (original element being dragged - show with reduced opacity) */
 .sortable-chosen {
-  opacity: 0 !important;
+  opacity: 0.3 !important;
+  background: rgba(59, 130, 246, 0.1) !important;
+  border: 2px dashed var(--accent-primary, #3b82f6) !important;
+  transform: scale(0.95) !important;
+  transition: all 0.2s ease !important;
 }
 
 /* Ghost element (placeholder showing where item will drop) */
 .sortable-ghost {
-  opacity: 0.4;
-  background: rgba(59, 130, 246, 0.1);
-  border: 2px dashed var(--accent-primary, #3b82f6);
+  opacity: 1 !important;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%) !important;
+  border: 3px solid var(--accent-primary, #3b82f6) !important;
   border-radius: var(--radius-lg, 8px);
+  min-height: 150px;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4) inset !important;
+  animation: ghostPulse 1s ease-in-out infinite;
 }
 
-/* Element being dragged */
+@keyframes ghostPulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4) inset;
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.6) inset;
+  }
+}
+
+/* Fallback drag element (what follows the cursor) - hide it completely */
+.sortable-fallback {
+  display: none !important;
+}
+
+/* Element being dragged (for non-fallback mode) */
 .sortable-drag {
-  opacity: 0.9;
-  cursor: grabbing !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  transform: scale(1.03);
-  z-index: 1000;
+  display: none !important;
 }
 
 /* Custom dragging state */

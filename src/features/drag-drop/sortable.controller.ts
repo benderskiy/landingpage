@@ -15,9 +15,12 @@ export function initFolderSortable(): void {
     ghostClass: 'sortable-ghost',
     chosenClass: 'sortable-chosen',
     dragClass: 'sortable-drag',
+    fallbackClass: 'sortable-fallback',
     handle: '.drag-handle',
     draggable: 'nav[data-folder-id]',
     forceFallback: true,
+    fallbackOnBody: true,
+    swapThreshold: 0.65,
 
     onStart: (evt) => {
       evt.item.classList.add('dragging');
