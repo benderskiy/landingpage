@@ -1,92 +1,125 @@
+import Sortable from 'sortablejs';
 import { moveBookmark } from '../../services/chrome-api.service';
 import { showSuccessMessage, showErrorMessage } from '../../ui/notifications';
-import { AppState } from '../../state/app-state';
 import { refreshFolders } from '../../main';
 
+// Store Sortable instances for each folder
+const bookmarkSortableInstances = new Map<HTMLElement, Sortable>();
+
 export function initBookmarkDrag(): void {
-  const bookmarkItems = document.querySelectorAll<HTMLElement>('.bookmark-item');
+  // Clean up existing instances first
+  destroyBookmarkDrag();
 
-  bookmarkItems.forEach((item) => {
-    const bookmarkId = item.dataset.bookmarkId;
-    if (!bookmarkId) return;
-
-    item.setAttribute('draggable', 'true');
-
-    item.addEventListener('dragstart', (e: DragEvent) => {
-      const appState = AppState.getInstance();
-      appState.dragState.draggedElement = item;
-      appState.dragState.draggedType = 'bookmark';
-      appState.dragState.draggedId = bookmarkId;
-
-      const parentNav = item.closest('nav[data-folder-id]');
-      if (parentNav) {
-        appState.dragState.sourceParentId = parentNav.getAttribute('data-folder-id');
-      }
-
-      if (e.dataTransfer) {
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/html', item.innerHTML);
-      }
-
-      item.style.opacity = '0.5';
-    });
-
-    item.addEventListener('dragend', () => {
-      item.style.opacity = '1';
-      const appState = AppState.getInstance();
-      appState.resetDragState();
-    });
-  });
-
-  // Setup folder drop zones for bookmarks
+  // Initialize SortableJS for bookmark items in each folder
   const folders = document.querySelectorAll<HTMLElement>('nav[data-folder-id]');
+
   folders.forEach((folder) => {
-    folder.addEventListener('dragover', (e: DragEvent) => {
-      e.preventDefault();
-      const appState = AppState.getInstance();
+    const folderId = folder.getAttribute('data-folder-id');
+    if (!folderId) return;
 
-      if (appState.dragState.draggedType === 'bookmark') {
-        folder.classList.add('bookmark-drop-target');
-        if (e.dataTransfer) {
-          e.dataTransfer.dropEffect = 'move';
+    // Create Sortable instance for this folder's bookmarks
+    const sortableInstance = Sortable.create(folder, {
+      group: 'bookmarks', // Allow dragging between folders
+      animation: 200,
+      easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      dragClass: 'sortable-drag',
+      draggable: '.bookmark-item', // Only bookmark items are draggable
+      handle: '.bookmark-drag-handle', // Only drag via handle
+      filter: '.folder-header, .create-folder-card', // Exclude these elements
+      forceFallback: true,
+      fallbackOnBody: true,
+      swapThreshold: 0.65,
+
+      onStart: (evt) => {
+        if (evt.item) {
+          evt.item.style.opacity = '0.5';
         }
-      }
-    });
+      },
 
-    folder.addEventListener('dragleave', () => {
-      folder.classList.remove('bookmark-drop-target');
-    });
+      onEnd: async (evt) => {
+        if (evt.item) {
+          evt.item.style.opacity = '1';
+        }
 
-    folder.addEventListener('drop', async (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
+        // Get bookmark and folder information
+        const bookmarkId = evt.item.getAttribute('data-bookmark-id');
+        const sourceFolderId = evt.from.getAttribute('data-folder-id');
+        const targetFolderId = evt.to.getAttribute('data-folder-id');
+        const newIndex = evt.newIndex;
 
-      folder.classList.remove('bookmark-drop-target');
+        if (!bookmarkId || !targetFolderId) {
+          console.error('Missing bookmark or folder ID');
+          return;
+        }
 
-      const appState = AppState.getInstance();
-      const draggedId = appState.dragState.draggedId;
-      const sourceParentId = appState.dragState.sourceParentId;
-      const targetFolderId = folder.getAttribute('data-folder-id');
+        // Check if anything actually changed
+        const positionChanged = evt.oldIndex !== evt.newIndex;
+        const folderChanged = sourceFolderId !== targetFolderId;
 
-      if (
-        appState.dragState.draggedType === 'bookmark' &&
-        draggedId &&
-        targetFolderId &&
-        sourceParentId !== targetFolderId
-      ) {
+        if (!positionChanged && !folderChanged) {
+          return;
+        }
+
         try {
-          await moveBookmark(draggedId, { parentId: targetFolderId });
-          showSuccessMessage('Bookmark moved successfully');
+          // Move bookmark to new position/folder
+          await moveBookmark(bookmarkId, {
+            parentId: targetFolderId,
+            index: newIndex,
+          });
 
-          // Refresh the folders to show the bookmark in its new location
-          await refreshFolders();
+          if (folderChanged) {
+            showSuccessMessage('Bookmark moved to another folder');
+            // Refresh only when moving between folders to update counts
+            await refreshFolders();
+          } else {
+            showSuccessMessage('Bookmark reordered');
+            // Don't refresh when reordering within same folder - DOM is already correct
+          }
         } catch (error) {
           console.error('Failed to move bookmark:', error);
           showErrorMessage('Failed to move bookmark');
-        }
-      }
 
-      appState.resetDragState();
+          // Revert the DOM change on error
+          if (evt.from === evt.to && typeof evt.oldIndex === 'number' && typeof evt.newIndex === 'number') {
+            const items = Array.from(evt.to.children);
+            const item = items[evt.newIndex];
+            if (item && items[evt.oldIndex]) {
+              evt.to.insertBefore(item, items[evt.oldIndex]);
+            }
+          } else if (evt.from !== evt.to) {
+            // Move back to original folder
+            evt.from.appendChild(evt.item);
+          }
+        }
+      },
+    });
+
+    // Store instance for cleanup
+    bookmarkSortableInstances.set(folder, sortableInstance);
+  });
+}
+
+export function destroyBookmarkDrag(): void {
+  // Destroy all Sortable instances
+  bookmarkSortableInstances.forEach((instance, folder) => {
+    instance.destroy();
+
+    // Clean up any leftover styling
+    const bookmarks = folder.querySelectorAll<HTMLElement>('.bookmark-item');
+    bookmarks.forEach((bookmark) => {
+      bookmark.style.opacity = '1';
     });
   });
+
+  bookmarkSortableInstances.clear();
+}
+
+export function toggleBookmarkDrag(enabled: boolean): void {
+  if (enabled) {
+    initBookmarkDrag();
+  } else {
+    destroyBookmarkDrag();
+  }
 }

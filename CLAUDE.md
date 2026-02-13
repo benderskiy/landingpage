@@ -37,13 +37,20 @@ This is a Chrome/Chromium browser extension (Manifest V3) that replaces the new 
 
 ## Development Workflow
 
+**Building the Extension:**
+- **CRITICAL**: Always run `npm run build` after making any code changes (TypeScript, HTML, CSS)
+- The build process compiles TypeScript, bundles with Vite, and copies files to the `dist/` directory
+- Build command: `npm run build`
+- Type checking only (no build): `npm run type-check`
+
 **Testing the Extension:**
-1. Open Chrome/Edge and navigate to `chrome://extensions/`
-2. Enable "Developer mode"
-3. Click "Load unpacked"
-4. Select the repository root directory
-5. Open a new tab to see changes
-6. After code changes, click the reload icon on the extension card and refresh the new tab
+1. **Build first**: Run `npm run build` to compile and bundle the extension
+2. Open Chrome/Edge and navigate to `chrome://extensions/`
+3. Enable "Developer mode"
+4. Click "Load unpacked"
+5. Select the **`dist/` directory** (not the repository root)
+6. Open a new tab to see changes
+7. After code changes: Run `npm run build` again → Click reload icon on extension card → Refresh new tab
 
 **Debugging:**
 - Right-click on the new tab page and select "Inspect" to open DevTools

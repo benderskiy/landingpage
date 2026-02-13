@@ -5,6 +5,7 @@ export class AppState {
 
   bookmarksData: BookmarksData | null = null;
   folderOrder: Map<string, number> = new Map();
+  editMode: boolean = false;
   dragState: DragState = {
     draggedElement: null,
     draggedType: null,

@@ -12,6 +12,14 @@
     <body>
         <header>
             <input type="search" autocomplete="off" id="site-search" name="q" placeholder="Search bookmarks..." aria-label="Search through bookmarks">
+            <button type="button" id="edit-mode-toggle" class="edit-mode-toggle" aria-pressed="false" aria-label="Toggle edit mode">
+                <span class="toggle-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                    </svg>
+                </span>
+                <span class="toggle-label">Edit</span>
+            </button>
         </header>
         <div role="status" aria-live="polite" id="results-status" class="sr-only"></div>
         <main id="main"></main>

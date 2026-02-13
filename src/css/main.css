@@ -272,7 +272,7 @@ body {
 
 header {
   width: 100%;
-  padding: var(--space-8) var(--space-8) var(--space-6);
+  padding: var(--space-8) var(--space-8) var(--space-4);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -288,14 +288,44 @@ header {
   gap: var(--space-4);
 }
 
+/* Gradient fade effect for scrolled content underneath header */
+header::after {
+  content: '';
+  position: absolute;
+  bottom: -60px;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: linear-gradient(
+    to bottom,
+    var(--bg-primary) 0%,
+    rgba(245, 247, 250, 0.5) 40%,
+    rgba(245, 247, 250, 0) 100%
+  );
+  pointer-events: none;
+  z-index: -1;
+  transition: background var(--duration-base) var(--ease-out);
+}
+
+@media (prefers-color-scheme: dark) {
+  header::after {
+    background: linear-gradient(
+      to bottom,
+      var(--bg-primary) 0%,
+      rgba(15, 23, 42, 0.5) 40%,
+      rgba(15, 23, 42, 0) 100%
+    );
+  }
+}
+
 #site-search {
   display: block;
   width: 100%;
   max-width: 600px;
   flex: 1;
   margin: 0;
-  height: 56px;
-  font-size: var(--text-lg);
+  height: 44px;
+  font-size: var(--text-base);
   font-weight: var(--font-medium);
   font-family: var(--font-system);
   color: var(--text-primary);
@@ -346,8 +376,8 @@ header {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  height: 56px;
+  padding: var(--space-2) var(--space-3);
+  height: 44px;
 
   /* Glassmorphism */
   background: var(--glass-bg);
@@ -397,8 +427,18 @@ header {
 }
 
 .toggle-icon {
-  font-size: 1.125rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
   line-height: 1;
+}
+
+.toggle-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .toggle-label {

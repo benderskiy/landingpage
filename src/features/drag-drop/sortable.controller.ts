@@ -2,14 +2,23 @@ import Sortable from 'sortablejs';
 import { reorderFolders } from '../folder-management/folder-order';
 import { showSuccessMessage, showErrorMessage } from '../../ui/notifications';
 
+// Store the Sortable instance
+let sortableInstance: Sortable | null = null;
+
 export function initFolderSortable(): void {
+  // Destroy existing instance if any
+  if (sortableInstance) {
+    sortableInstance.destroy();
+    sortableInstance = null;
+  }
+
   const mainContainer = document.querySelector<HTMLElement>('main#main');
   if (!mainContainer) {
     console.error('Main container not found for SortableJS');
     return;
   }
 
-  Sortable.create(mainContainer, {
+  sortableInstance = Sortable.create(mainContainer, {
     animation: 200,
     easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
     ghostClass: 'sortable-ghost',
@@ -51,4 +60,19 @@ export function initFolderSortable(): void {
       }
     },
   });
+}
+
+export function destroyFolderSortable(): void {
+  if (sortableInstance) {
+    sortableInstance.destroy();
+    sortableInstance = null;
+  }
+}
+
+export function toggleFolderSortable(enabled: boolean): void {
+  if (enabled) {
+    initFolderSortable();
+  } else {
+    destroyFolderSortable();
+  }
 }

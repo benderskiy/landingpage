@@ -1,7 +1,5 @@
 import { Bookmark, Folder, BookmarksData } from '../types';
 
-const IGNORED = ['SAP IT Links', 'SAP Links', 'Concur Links'];
-
 export async function getBookmarks(): Promise<BookmarksData> {
   try {
     const bookmarksTree: chrome.bookmarks.BookmarkTreeNode[] = await chrome.bookmarks.getTree();
@@ -22,9 +20,19 @@ function getFolders(tree: chrome.bookmarks.BookmarkTreeNode): BookmarksData {
   const folders: Folder[] = [];
   const links: Bookmark[] = [];
 
-  if (IGNORED.includes(tree.title || '')) {
-    return { folders: [], links: [] };
-  }
+  // Filter out system folders that can't be deleted
+  const isSystemFolder = (title: string | undefined): boolean => {
+    if (!title) return true; // Folders without title are system folders
+    const lowerTitle = title.toLowerCase();
+    const systemFolderNames = [
+      'bookmarks bar',
+      'bookmarks toolbar',
+      'other bookmarks',
+      'mobile bookmarks',
+      'reading list'
+    ];
+    return systemFolderNames.some(name => lowerTitle.includes(name));
+  };
 
   if (tree.children) {
     const folderLinks: Bookmark[] = [];
@@ -44,7 +52,9 @@ function getFolders(tree: chrome.bookmarks.BookmarkTreeNode): BookmarksData {
       }
     });
 
-    if (folderLinks.length > 0) {
+    // Skip system folders when adding to results
+    if (!isSystemFolder(tree.title)) {
+      // Always include folders, even if empty
       links.push(...folderLinks);
       folders.unshift({
         info: tree as Bookmark,
