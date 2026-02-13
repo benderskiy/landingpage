@@ -6,7 +6,8 @@
   "permissions": [
     "history",
     "bookmarks",
-    "favicon"
+    "favicon",
+    "storage"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"

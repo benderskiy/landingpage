@@ -1,129 +1,164 @@
-import Fuse from 'fuse.js';
-import type { IFuseOptions } from 'fuse.js';
 import 'modern-normalize/modern-normalize.css';
 import './css/main.css';
 
-// Type Definitions
-interface Bookmark {
-  title: string;
-  url: string;
-  id?: string;
-}
-
-interface Folder {
-  info: chrome.bookmarks.BookmarkTreeNode;
-  links: Bookmark[];
-}
-
-interface BookmarksData {
-  folders: Folder[];
-  links: Bookmark[];
-}
-
-// Constants
-const IGNORED_FOLDERS: string[] = ['SAP IT Links', 'SAP Links', 'Concur Links'];
-
-// Bookmarks API
-async function getBookmarks(): Promise<BookmarksData> {
-  try {
-    const bookmarksTree: chrome.bookmarks.BookmarkTreeNode[] = await chrome.bookmarks.getTree();
-
-    if (!bookmarksTree.length) {
-      throw new Error('No bookmarks found');
-    }
-
-    const root = bookmarksTree[0];
-    return getFolders(root);
-  } catch (error) {
-    console.error('Failed to load bookmarks:', error);
-    showErrorMessage('Unable to load bookmarks. Please reload the page.');
-    return { folders: [], links: [] };
-  }
-}
-
-function getFolders(tree: chrome.bookmarks.BookmarkTreeNode): BookmarksData {
-  const folders: Folder[] = [];
-  const links: Bookmark[] = [];
-
-  if (IGNORED_FOLDERS.includes(tree.title || '')) {
-    return { folders: [], links: [] };
-  }
-
-  if (tree.children) {
-    const folderLinks: Bookmark[] = [];
-
-    tree.children.forEach((subtree) => {
-      if (!subtree.children && subtree.url) {
-        // It's a bookmark
-        folderLinks.push({
-          title: subtree.title || '',
-          url: subtree.url,
-          id: subtree.id,
-        });
-      } else {
-        // It's a folder, recurse
-        const subFolders = getFolders(subtree);
-        folders.push(...subFolders.folders);
-      }
-    });
-
-    if (folderLinks.length > 0) {
-      links.push(...folderLinks);
-      folders.unshift({
-        info: tree,
-        links: folderLinks,
-      });
-    }
-  }
-
-  return { folders, links };
-}
-
-// Favicon Utilities
-function getFaviconUrl(pageUrl: string): string {
-  try {
-    const url = new URL(chrome.runtime.getURL('/_favicon/'));
-    url.searchParams.set('pageUrl', pageUrl);
-    url.searchParams.set('size', '32');
-    return url.toString();
-  } catch (error) {
-    console.warn('Invalid URL for favicon:', pageUrl);
-    return '';
-  }
-}
+// Module imports
+import { Bookmark, Folder } from './types';
+import { AppState } from './state/app-state';
+import { getBookmarks } from './services/bookmarks.service';
+import { loadFolderOrder } from './services/storage.service';
+import { getFaviconUrl, debounce } from './ui/utils';
+import { showSuccessMessage, showErrorMessage, showLoading } from './ui/notifications';
+import { applyFolderOrder } from './features/folder-management/folder-order';
+import { initSearch } from './features/search/search.controller';
+import { initFolderSortable } from './features/drag-drop/sortable.controller';
+import { initBookmarkDrag } from './features/drag-drop/bookmark-drag';
 
 // Rendering Functions
 function renderLinks(links: Bookmark[], container: HTMLElement): void {
   links.forEach((link) => {
-    const linkElement = document.createElement('a');
-    linkElement.textContent = link.title;
-    linkElement.href = link.url;
+    // Create wrapper div for bookmark + delete button
+    const bookmarkWrapper = document.createElement('div');
+    bookmarkWrapper.className = 'bookmark-item';
+    bookmarkWrapper.dataset.bookmarkId = link.id || '';
 
+    // Create the link element
+    const linkElement = document.createElement('a');
+    linkElement.textContent = link.title || '';
+    linkElement.href = link.url || '';
+
+    // Create favicon
     const favicon = document.createElement('img');
     favicon.height = 16;
     favicon.width = 16;
-    favicon.src = getFaviconUrl(link.url);
+    favicon.src = getFaviconUrl(link.url || '');
     favicon.onerror = (): void => {
       favicon.style.display = 'none';
     };
 
     linkElement.prepend(favicon);
-    container.appendChild(linkElement);
+
+    // Create delete button
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'delete-btn';
+    deleteButton.innerHTML = '×';
+    deleteButton.setAttribute('aria-label', `Delete ${link.title}`);
+    deleteButton.type = 'button';
+    deleteButton.tabIndex = -1;
+
+    // Attach delete handler
+    deleteButton.addEventListener('click', async (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (link.id) {
+        await handleDeleteBookmark(link.id, bookmarkWrapper);
+      }
+    });
+
+    // Assemble the structure
+    bookmarkWrapper.appendChild(linkElement);
+    bookmarkWrapper.appendChild(deleteButton);
+    container.appendChild(bookmarkWrapper);
   });
+}
+
+async function handleDeleteBookmark(bookmarkId: string, element: HTMLElement): Promise<void> {
+  try {
+    // Confirm deletion
+    const bookmark = element.querySelector('a');
+    const title = bookmark?.textContent || 'this bookmark';
+
+    if (!confirm(`Delete "${title}"?`)) {
+      return;
+    }
+
+    // Show deleting state
+    element.style.opacity = '0.5';
+    element.style.pointerEvents = 'none';
+
+    // Delete via Chrome API
+    await chrome.bookmarks.remove(bookmarkId);
+
+    // Animate removal
+    element.style.transition = 'opacity 0.3s, max-height 0.3s';
+    element.style.opacity = '0';
+    element.style.maxHeight = '0';
+    element.style.marginTop = '0';
+    element.style.marginBottom = '0';
+
+    // Remove from DOM after animation
+    setTimeout(() => {
+      element.remove();
+
+      // Check if parent folder is now empty
+      const parentNav = element.closest('nav');
+      if (parentNav) {
+        const remainingBookmarks = parentNav.querySelectorAll('.bookmark-item');
+        if (remainingBookmarks.length === 0) {
+          // Remove empty folder
+          parentNav.remove();
+        }
+      }
+    }, 300);
+  } catch (error) {
+    console.error('Failed to delete bookmark:', error);
+
+    // Restore element state
+    element.style.opacity = '1';
+    element.style.pointerEvents = 'auto';
+
+    // Show error message
+    showErrorMessage('Failed to delete bookmark. Please try again.');
+
+    // Auto-hide error after 3 seconds
+    setTimeout(() => {
+      const errorDiv = document.querySelector('.error');
+      if (errorDiv) {
+        errorDiv.remove();
+      }
+    }, 3000);
+  }
 }
 
 function renderFoldersToContainer(folders: Folder[], container: HTMLElement): void {
   folders.forEach((folder) => {
     const folderNav = document.createElement('nav');
 
+    // Add data attribute for folder ID
+    folderNav.dataset.folderId = folder.info.id;
+
+    // Create folder header with drag handle
+    const folderHeader = document.createElement('div');
+    folderHeader.className = 'folder-header';
+
+    // Create drag handle (div instead of button for reliable dragging)
+    const dragHandle = document.createElement('div');
+    dragHandle.className = 'drag-handle';
+    dragHandle.setAttribute('role', 'button');
+    dragHandle.setAttribute('tabindex', '0');
+    dragHandle.setAttribute('aria-label', `Drag to reorder ${folder.info.title || 'folder'}`);
+
+    const dragIcon = document.createElement('span');
+    dragIcon.className = 'drag-handle-icon';
+    dragIcon.textContent = '⋮⋮';
+    dragHandle.appendChild(dragIcon);
+
+    // Create folder title
     const title = document.createElement('h1');
     title.textContent = folder.info.title || '';
-    folderNav.appendChild(title);
+    title.className = 'folder-title';
+
+    // Assemble header
+    folderHeader.appendChild(dragHandle);
+    folderHeader.appendChild(title);
+    folderNav.appendChild(folderHeader);
 
     renderLinks(folder.links, folderNav);
 
     container.appendChild(folderNav);
   });
+
+  // Render create folder card
+  renderCreateFolderCard(container);
 }
 
 function renderFolders(folders: Folder[]): void {
@@ -143,6 +178,12 @@ function renderFolders(folders: Folder[]): void {
 
   renderFoldersToContainer(folders, main);
 
+  // Highlight first bookmark as selected
+  const firstBookmark = main.querySelector<HTMLElement>('.bookmark-item');
+  if (firstBookmark) {
+    firstBookmark.classList.add('selected');
+  }
+
   // Announce results for screen readers
   const resultsStatus = document.getElementById('results-status');
   if (resultsStatus) {
@@ -151,87 +192,127 @@ function renderFolders(folders: Folder[]): void {
   }
 }
 
-function showErrorMessage(message: string): void {
-  const main = document.querySelector<HTMLElement>('main#main');
-  if (main) {
-    main.innerHTML = `<div class="error">${message}</div>`;
-  }
+export async function refreshFolders(): Promise<void> {
+  const appState = AppState.getInstance();
+
+  const bookmarks = await getBookmarks();
+  appState.bookmarksData = bookmarks;
+
+  const orderedBookmarks = applyFolderOrder(bookmarks);
+  renderFolders(orderedBookmarks.folders);
+  initSearch(bookmarks, renderFolders, debounce);
+
+  // Reinitialize drag & drop after refresh
+  setTimeout(() => {
+    initFolderSortable();
+    initBookmarkDrag();
+  }, 100);
 }
 
-function showLoading(): void {
-  const main = document.querySelector<HTMLElement>('main#main');
-  if (main) {
-    main.innerHTML = '<div class="loading">Loading bookmarks...</div>';
-  }
-}
+// Folder Creation UI
+function renderCreateFolderCard(container: HTMLElement): void {
+  const createCard = document.createElement('div');
+  createCard.className = 'folder-create-card';
+  createCard.innerHTML = `
+    <button type="button" class="create-folder-btn" aria-label="Create new folder">
+      <svg class="create-folder-icon" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+        <line x1="12" y1="11" x2="12" y2="17"></line>
+        <line x1="9" y1="14" x2="15" y2="14"></line>
+      </svg>
+      <span class="create-folder-label">Create Folder</span>
+    </button>
+    <div class="create-folder-form hidden">
+      <input type="text" class="folder-name-input" placeholder="Folder name" maxlength="100" aria-label="Folder name">
+      <div class="form-actions">
+        <button type="button" class="btn-confirm">Create</button>
+        <button type="button" class="btn-cancel">Cancel</button>
+      </div>
+    </div>
+  `;
 
-// Utility Functions
-function debounce<T extends (...args: any[]) => any>(
-  fn: T,
-  delay: number
-): (...args: Parameters<T>) => void {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  return function (this: any, ...args: Parameters<T>): void {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
+  container.appendChild(createCard);
+
+  const createBtn = createCard.querySelector<HTMLButtonElement>('.create-folder-btn');
+  const input = createCard.querySelector<HTMLInputElement>('.folder-name-input');
+  const confirmBtn = createCard.querySelector<HTMLButtonElement>('.btn-confirm');
+  const cancelBtn = createCard.querySelector<HTMLButtonElement>('.btn-cancel');
+
+  createBtn?.addEventListener('click', () => showCreateFolderForm(createCard));
+  confirmBtn?.addEventListener('click', () => handleCreateFolder(input!, createCard));
+  cancelBtn?.addEventListener('click', () => hideCreateFolderForm(createCard));
+
+  input?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      handleCreateFolder(input, createCard);
+    } else if (e.key === 'Escape') {
+      hideCreateFolderForm(createCard);
     }
-    timeoutId = setTimeout(() => fn.apply(this, args), delay);
-  };
+  });
 }
 
-// Search Functionality
-function initSearch(bookmarks: BookmarksData): void {
-  const fuseOptions: IFuseOptions<Folder> = {
-    keys: ['links.title', 'links.url'],
-    threshold: 0.3,
-  };
+function showCreateFolderForm(card: HTMLElement): void {
+  const btn = card.querySelector('.create-folder-btn');
+  const form = card.querySelector<HTMLElement>('.create-folder-form');
+  const input = card.querySelector<HTMLInputElement>('.folder-name-input');
 
-  const fuse = new Fuse<Folder>(bookmarks.folders, fuseOptions);
+  btn?.classList.add('hidden');
+  form?.classList.remove('hidden');
+  input?.focus();
+}
 
-  function searchTitle(text: string): Folder[] {
-    if (!text) {
-      return bookmarks.folders;
-    }
+function hideCreateFolderForm(card: HTMLElement): void {
+  const btn = card.querySelector('.create-folder-btn');
+  const form = card.querySelector<HTMLElement>('.create-folder-form');
+  const input = card.querySelector<HTMLInputElement>('.folder-name-input');
 
-    const results = fuse.search(text);
+  form?.classList.add('hidden');
+  btn?.classList.remove('hidden');
+  if (input) input.value = '';
+}
 
-    return results.map((result) => {
-      const linkFuseOptions: IFuseOptions<Bookmark> = {
-        keys: ['title', 'url'],
-        threshold: 0.3,
-      };
-      const linkFuse = new Fuse<Bookmark>(result.item.links, linkFuseOptions);
-      const linkResults = linkFuse.search(text);
+async function handleCreateFolder(input: HTMLInputElement, card: HTMLElement): Promise<void> {
+  const folderName = input.value.trim();
 
-      return {
-        info: result.item.info,
-        links: linkResults.length > 0 ? linkResults.map((r) => r.item) : result.item.links,
-      };
+  if (!folderName) {
+    input.focus();
+    showErrorMessage('Folder name cannot be empty');
+    return;
+  }
+
+  if (folderName.length > 100) {
+    showErrorMessage('Folder name is too long (max 100 characters)');
+    return;
+  }
+
+  try {
+    const confirmBtn = card.querySelector<HTMLButtonElement>('.btn-confirm');
+    const cancelBtn = card.querySelector<HTMLButtonElement>('.btn-cancel');
+    if (confirmBtn) confirmBtn.disabled = true;
+    if (cancelBtn) cancelBtn.disabled = true;
+    input.disabled = true;
+
+    const ROOT_FOLDER_ID = '1'; // Bookmarks Bar
+
+    const newFolder = await chrome.bookmarks.create({
+      parentId: ROOT_FOLDER_ID,
+      title: folderName,
     });
-  }
 
-  function startFirstLink(): void {
-    const firstLink = document.querySelector<HTMLAnchorElement>('nav > a');
-    if (firstLink) {
-      firstLink.click();
-    }
-  }
+    console.log('Created folder:', newFolder);
 
-  const searchInput = document.querySelector<HTMLInputElement>('#site-search');
-  if (searchInput) {
-    searchInput.addEventListener(
-      'input',
-      debounce((event: Event) => {
-        const target = event.target as HTMLInputElement;
-        renderFolders(searchTitle(target.value));
-      }, 150)
-    );
+    hideCreateFolderForm(card);
+    await refreshFolders();
+    showSuccessMessage(`Folder "${folderName}" created successfully`);
+  } catch (error) {
+    console.error('Failed to create folder:', error);
+    showErrorMessage('Failed to create folder. Please try again.');
 
-    searchInput.addEventListener('keypress', (event: KeyboardEvent) => {
-      if (event.key === 'Enter') {
-        startFirstLink();
-      }
-    });
+    const confirmBtn = card.querySelector<HTMLButtonElement>('.btn-confirm');
+    const cancelBtn = card.querySelector<HTMLButtonElement>('.btn-cancel');
+    if (confirmBtn) confirmBtn.disabled = false;
+    if (cancelBtn) cancelBtn.disabled = false;
+    input.disabled = false;
   }
 }
 
@@ -240,9 +321,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   showLoading();
 
   try {
+    const appState = AppState.getInstance();
+
+    // Load folder order from storage
+    appState.folderOrder = await loadFolderOrder();
+
     const bookmarks = await getBookmarks();
-    renderFolders(bookmarks.folders);
-    initSearch(bookmarks);
+    appState.bookmarksData = bookmarks;
+
+    const orderedBookmarks = applyFolderOrder(bookmarks);
+    renderFolders(orderedBookmarks.folders);
+    initSearch(bookmarks, renderFolders, debounce);
+
+    // Initialize drag & drop
+    // Use setTimeout to ensure DOM is fully rendered before initializing
+    setTimeout(() => {
+      initFolderSortable(); // SortableJS for folder reordering
+      initBookmarkDrag(); // Native drag for moving bookmarks between folders
+    }, 100);
   } catch (error) {
     console.error('Initialization error:', error);
     showErrorMessage('Failed to load bookmarks. Please reload the page.');
