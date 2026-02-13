@@ -10,8 +10,10 @@ import { getFaviconUrl, debounce } from './ui/utils';
 import { showSuccessMessage, showErrorMessage, showLoading } from './ui/notifications';
 import { applyFolderOrder } from './features/folder-management/folder-order';
 import { initSearch } from './features/search/search.controller';
-import { initFolderSortable } from './features/drag-drop/sortable.controller';
-import { initBookmarkDrag } from './features/drag-drop/bookmark-drag';
+import { initFolderSortable, toggleFolderSortable } from './features/drag-drop/sortable.controller';
+import { initBookmarkDrag, toggleBookmarkDrag } from './features/drag-drop/bookmark-drag';
+import { handleRenameFolder, handleRenameBookmark } from './features/bookmark-management/rename';
+import { handleDeleteFolder } from './features/folder-management/folder-deletion';
 
 // Rendering Functions
 function renderLinks(links: Bookmark[], container: HTMLElement): void {
@@ -21,10 +23,41 @@ function renderLinks(links: Bookmark[], container: HTMLElement): void {
     bookmarkWrapper.className = 'bookmark-item';
     bookmarkWrapper.dataset.bookmarkId = link.id || '';
 
+    // Create drag handle for bookmarks
+    const dragHandle = document.createElement('div');
+    dragHandle.className = 'drag-handle bookmark-drag-handle';
+    dragHandle.setAttribute('role', 'button');
+    dragHandle.setAttribute('tabindex', '0');
+    dragHandle.setAttribute('aria-label', `Drag to reorder ${link.title || 'bookmark'}`);
+
+    const dragIcon = document.createElement('span');
+    dragIcon.className = 'drag-handle-icon';
+    dragIcon.textContent = '⋮⋮';
+    dragHandle.appendChild(dragIcon);
+
     // Create the link element
     const linkElement = document.createElement('a');
     linkElement.textContent = link.title || '';
     linkElement.href = link.url || '';
+
+    // Prevent navigation in edit mode, enable click-to-edit
+    linkElement.addEventListener('click', (e: Event) => {
+      const appState = AppState.getInstance();
+      if (appState.editMode) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (link.id) {
+          handleRenameBookmark(link.id, linkElement);
+        }
+        return false;
+      } else {
+        // Show full-page loading overlay when navigating to bookmark
+        const overlay = document.createElement('div');
+        overlay.className = 'page-loading-overlay';
+        overlay.innerHTML = '<div class="page-loading-spinner"></div>';
+        document.body.appendChild(overlay);
+      }
+    });
 
     // Create favicon
     const favicon = document.createElement('img');
@@ -37,13 +70,16 @@ function renderLinks(links: Bookmark[], container: HTMLElement): void {
 
     linkElement.prepend(favicon);
 
+    // Create bookmark actions container
+    const bookmarkActions = document.createElement('div');
+    bookmarkActions.className = 'bookmark-actions';
+
     // Create delete button
     const deleteButton = document.createElement('button');
-    deleteButton.className = 'delete-btn';
+    deleteButton.className = 'action-btn action-btn-delete';
     deleteButton.innerHTML = '×';
     deleteButton.setAttribute('aria-label', `Delete ${link.title}`);
     deleteButton.type = 'button';
-    deleteButton.tabIndex = -1;
 
     // Attach delete handler
     deleteButton.addEventListener('click', async (e: Event) => {
@@ -54,9 +90,12 @@ function renderLinks(links: Bookmark[], container: HTMLElement): void {
       }
     });
 
+    bookmarkActions.appendChild(deleteButton);
+
     // Assemble the structure
+    bookmarkWrapper.appendChild(dragHandle);
     bookmarkWrapper.appendChild(linkElement);
-    bookmarkWrapper.appendChild(deleteButton);
+    bookmarkWrapper.appendChild(bookmarkActions);
     container.appendChild(bookmarkWrapper);
   });
 }
@@ -147,9 +186,41 @@ function renderFoldersToContainer(folders: Folder[], container: HTMLElement): vo
     title.textContent = folder.info.title || '';
     title.className = 'folder-title';
 
+    // Add click-to-edit in edit mode
+    title.addEventListener('click', (e: Event) => {
+      const appState = AppState.getInstance();
+      if (appState.editMode && folder.info.id) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleRenameFolder(folder.info.id, title);
+      }
+    });
+
+    // Create folder actions container
+    const folderActions = document.createElement('div');
+    folderActions.className = 'folder-actions';
+
+    // Create folder delete button
+    const deleteFolderBtn = document.createElement('button');
+    deleteFolderBtn.className = 'action-btn action-btn-delete';
+    deleteFolderBtn.innerHTML = '×';
+    deleteFolderBtn.setAttribute('aria-label', `Delete folder ${folder.info.title || ''}`);
+    deleteFolderBtn.type = 'button';
+
+    deleteFolderBtn.addEventListener('click', async (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (folder.info.id) {
+        await handleDeleteFolder(folder.info.id, folderNav, folder.info.title || '');
+      }
+    });
+
+    folderActions.appendChild(deleteFolderBtn);
+
     // Assemble header
     folderHeader.appendChild(dragHandle);
     folderHeader.appendChild(title);
+    folderHeader.appendChild(folderActions);
     folderNav.appendChild(folderHeader);
 
     renderLinks(folder.links, folderNav);
@@ -161,7 +232,7 @@ function renderFoldersToContainer(folders: Folder[], container: HTMLElement): vo
   renderCreateFolderCard(container);
 }
 
-function renderFolders(folders: Folder[]): void {
+function renderFolders(folders: Folder[], isSearchResult: boolean = false): void {
   const main = document.querySelector<HTMLElement>('main#main');
   if (!main) return;
 
@@ -178,10 +249,12 @@ function renderFolders(folders: Folder[]): void {
 
   renderFoldersToContainer(folders, main);
 
-  // Highlight first bookmark as selected
-  const firstBookmark = main.querySelector<HTMLElement>('.bookmark-item');
-  if (firstBookmark) {
-    firstBookmark.classList.add('selected');
+  // Highlight first bookmark as selected ONLY during search
+  if (isSearchResult) {
+    const firstBookmark = main.querySelector<HTMLElement>('.bookmark-item');
+    if (firstBookmark) {
+      firstBookmark.classList.add('selected');
+    }
   }
 
   // Announce results for screen readers
@@ -202,11 +275,72 @@ export async function refreshFolders(): Promise<void> {
   renderFolders(orderedBookmarks.folders);
   initSearch(bookmarks, renderFolders, debounce);
 
-  // Reinitialize drag & drop after refresh
+  // Reinitialize drag & drop after refresh ONLY if edit mode is active
   setTimeout(() => {
-    initFolderSortable();
-    initBookmarkDrag();
+    if (appState.editMode) {
+      initFolderSortable();
+      initBookmarkDrag();
+    }
   }, 100);
+}
+
+// Edit Mode Toggle Functions
+function toggleEditMode(enabled: boolean): void {
+  const appState = AppState.getInstance();
+  appState.editMode = enabled;
+
+  // Update body class for CSS styling
+  if (enabled) {
+    document.body.classList.add('edit-mode');
+
+    // Disable all bookmark links by removing href
+    const bookmarkLinks = document.querySelectorAll<HTMLAnchorElement>('.bookmark-item a');
+    bookmarkLinks.forEach((link) => {
+      const href = link.getAttribute('href');
+      if (href) {
+        link.dataset.originalHref = href;
+        link.removeAttribute('href');
+        link.style.cursor = 'text';
+      }
+    });
+  } else {
+    document.body.classList.remove('edit-mode');
+
+    // Re-enable all bookmark links by restoring href
+    const bookmarkLinks = document.querySelectorAll<HTMLAnchorElement>('.bookmark-item a');
+    bookmarkLinks.forEach((link) => {
+      const originalHref = link.dataset.originalHref;
+      if (originalHref) {
+        link.setAttribute('href', originalHref);
+        link.removeAttribute('data-original-href');
+        link.style.cursor = '';
+      }
+    });
+  }
+
+  // Toggle drag & drop functionality
+  toggleFolderSortable(enabled);
+  toggleBookmarkDrag(enabled);
+
+  // Update button aria-pressed state
+  const toggleButton = document.querySelector<HTMLButtonElement>('#edit-mode-toggle');
+  if (toggleButton) {
+    toggleButton.setAttribute('aria-pressed', enabled.toString());
+  }
+}
+
+function initEditModeToggle(): void {
+  const toggleButton = document.querySelector<HTMLButtonElement>('#edit-mode-toggle');
+  if (!toggleButton) {
+    console.error('Edit mode toggle button not found');
+    return;
+  }
+
+  toggleButton.addEventListener('click', () => {
+    const appState = AppState.getInstance();
+    const newState = !appState.editMode;
+    toggleEditMode(newState);
+  });
 }
 
 // Folder Creation UI
@@ -333,12 +467,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderFolders(orderedBookmarks.folders);
     initSearch(bookmarks, renderFolders, debounce);
 
-    // Initialize drag & drop
+    // Initialize edit mode toggle (drag & drop disabled by default)
     // Use setTimeout to ensure DOM is fully rendered before initializing
     setTimeout(() => {
-      initFolderSortable(); // SortableJS for folder reordering
-      initBookmarkDrag(); // Native drag for moving bookmarks between folders
+      initEditModeToggle();
     }, 100);
+
+    // Remove selected state when tab key is used for navigation
+    document.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        const selectedBookmark = document.querySelector('.bookmark-item.selected');
+        if (selectedBookmark) {
+          selectedBookmark.classList.remove('selected');
+        }
+      }
+    });
   } catch (error) {
     console.error('Initialization error:', error);
     showErrorMessage('Failed to load bookmarks. Please reload the page.');

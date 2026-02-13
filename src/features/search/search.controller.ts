@@ -1,7 +1,7 @@
 import Fuse, { IFuseOptions } from 'fuse.js';
 import { Bookmark, Folder, BookmarksData } from '../../types';
 
-export function initSearch(bookmarks: BookmarksData, renderFolders: (folders: Folder[]) => void, debounce: <T extends (...args: any[]) => void>(func: T, wait: number) => (...args: Parameters<T>) => void): void {
+export function initSearch(bookmarks: BookmarksData, renderFolders: (folders: Folder[], isSearchResult?: boolean) => void, debounce: <T extends (...args: any[]) => void>(func: T, wait: number) => (...args: Parameters<T>) => void): void {
   const fuseOptions: IFuseOptions<Folder> = {
     keys: ['links.title', 'links.url'],
     threshold: 0.3,
@@ -44,7 +44,10 @@ export function initSearch(bookmarks: BookmarksData, renderFolders: (folders: Fo
       'input',
       debounce((event: Event) => {
         const target = event.target as HTMLInputElement;
-        renderFolders(searchTitle(target.value));
+        const query = target.value;
+        const folders = searchTitle(query);
+        // Pass true for isSearchResult if there's a search query
+        renderFolders(folders, query.length > 0);
       }, 150)
     );
 

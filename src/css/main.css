@@ -216,6 +216,15 @@
     --shadow-lg: var(--shadow-lg-dark);
     --shadow-xl: var(--shadow-xl-dark);
   }
+
+  /* Dark mode action buttons */
+  .action-btn-delete {
+    background: rgba(239, 68, 68, 0.15);
+  }
+
+  .action-btn-delete:hover {
+    background: rgba(239, 68, 68, 0.25);
+  }
 }
 
 /* =============================================================================
@@ -271,13 +280,20 @@ header {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   transition: all var(--duration-base) var(--ease-out);
+
+  /* Flexbox layout for search + toggle button */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
 }
 
 #site-search {
   display: block;
   width: 100%;
   max-width: 600px;
-  margin: 0 auto;
+  flex: 1;
+  margin: 0;
   height: 56px;
   font-size: var(--text-lg);
   font-weight: var(--font-medium);
@@ -322,6 +338,71 @@ header {
 #site-search::placeholder {
   color: var(--text-tertiary);
   font-weight: var(--font-normal);
+}
+
+/* Edit Mode Toggle Button */
+.edit-mode-toggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  height: 56px;
+
+  /* Glassmorphism */
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  /* Border & Shadow */
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+
+  /* Typography */
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  font-family: var(--font-system);
+
+  /* Interaction */
+  cursor: pointer;
+  transition: all var(--duration-base) var(--ease-out);
+  outline: none;
+}
+
+.edit-mode-toggle:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.edit-mode-toggle:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--focus-ring), var(--shadow-md);
+}
+
+.edit-mode-toggle[aria-pressed="true"] {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-lg);
+}
+
+.edit-mode-toggle[aria-pressed="true"]:hover {
+  background: var(--accent-primary);
+  opacity: 0.9;
+  color: white;
+}
+
+.toggle-icon {
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.toggle-label {
+  font-weight: var(--font-semibold);
 }
 
 /* =============================================================================
@@ -397,6 +478,8 @@ nav:nth-child(n+7) { animation-delay: 300ms; }
   align-items: center;
   gap: var(--space-2);
   margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 2px solid var(--folder-title-border);
 }
 
 /* Drag Handle Button */
@@ -409,7 +492,7 @@ nav:nth-child(n+7) { animation-delay: 300ms; }
   background: transparent;
   color: var(--text-tertiary, rgba(238, 238, 238, 0.5));
   cursor: grab;
-  display: flex;
+  display: none; /* Hidden by default */
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-md, 4px);
@@ -441,8 +524,7 @@ nav:nth-child(n+7) { animation-delay: 300ms; }
 .folder-title {
   flex: 1;
   margin: 0;
-  padding-bottom: var(--space-2);
-  border-bottom: 2px solid var(--folder-title-border);
+  padding-bottom: 0;
   font-size: var(--text-xl);
   font-weight: var(--font-semibold);
   color: var(--folder-title);
@@ -460,6 +542,8 @@ nav:nth-child(n+7) { animation-delay: 300ms; }
 
 .bookmark-item {
   position: relative;
+  display: flex;
+  align-items: center;
   margin: var(--space-1) 0;
   border-radius: var(--radius-lg);
   transition: all var(--duration-fast) var(--ease-out);
@@ -483,10 +567,10 @@ nav:nth-child(n+7) { animation-delay: 300ms; }
 /* Bookmark Links */
 .bookmark-item a,
 nav .bookmark-item a {
+  flex: 1;
   display: flex;
   align-items: center;
   padding: var(--space-2) var(--space-3);
-  padding-right: var(--space-10);
   color: var(--text-secondary);
   text-decoration: none;
   font-size: var(--text-sm);
@@ -529,59 +613,96 @@ nav .bookmark-item a:hover img {
 }
 
 /* =============================================================================
-   DELETE BUTTON
+   ACTION BARS (Edit Mode Only)
    ============================================================================= */
 
-.delete-btn {
-  position: absolute;
-  right: var(--space-3);
-  top: 50%;
-  transform: translateY(-50%);
+/* Action bar containers */
+.bookmark-actions,
+.folder-actions {
+  display: none;
+  flex-shrink: 0;
+  gap: var(--space-2);
+  align-items: center;
+  padding-left: var(--space-2);
+}
 
-  /* Sizing */
-  width: 28px;
-  height: 28px;
+body.edit-mode .bookmark-actions,
+body.edit-mode .folder-actions {
+  display: flex;
+  opacity: 0.8;
+  transition: opacity var(--duration-fast);
+}
 
-  /* Reset */
-  border: none;
-  background: transparent;
+.bookmark-item:hover .bookmark-actions,
+.folder-header:hover .folder-actions {
+  opacity: 1;
+}
+
+/* Show drag handles in edit mode */
+body.edit-mode .drag-handle {
+  display: flex;
+}
+
+/* Modern rectangular action buttons */
+.action-btn {
+  width: 24px;
+  height: 24px;
   padding: 0;
-
-  /* Typography */
-  color: var(--accent-danger);
-  font-size: 24px;
-  font-weight: var(--font-bold);
-  line-height: 1;
-
-  /* Layout */
+  border: none;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-md);
-
-  /* Interaction */
   cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-
-  /* Transitions */
+  font-size: 14px;
+  line-height: 1;
   transition: all var(--duration-fast) var(--ease-out);
+  flex-shrink: 0;
 }
 
-.bookmark-item:hover .delete-btn {
-  opacity: 0.7;
-  pointer-events: auto;
-}
-
-.delete-btn:hover {
-  opacity: 1;
+.action-btn-delete {
   background: rgba(239, 68, 68, 0.1);
-  transform: translateY(-50%) scale(1.15);
+  color: var(--accent-danger);
 }
 
-.delete-btn:active {
-  transform: translateY(-50%) scale(0.95);
+.action-btn-delete:hover {
   background: rgba(239, 68, 68, 0.2);
+  transform: scale(1.05);
+}
+
+.action-btn-delete:active {
+  transform: scale(0.95);
+  background: rgba(239, 68, 68, 0.3);
+}
+
+/* Direct editing in edit mode */
+body.edit-mode .folder-title,
+body.edit-mode .bookmark-item a {
+  cursor: text;
+  pointer-events: auto;
+  transition: background var(--duration-fast), outline var(--duration-fast);
+}
+
+body.edit-mode .folder-title:hover,
+body.edit-mode .bookmark-item a:hover {
+  background: rgba(59, 130, 246, 0.05);
+  outline: 1px dashed rgba(59, 130, 246, 0.3);
+  outline-offset: 2px;
+}
+
+/* Inline edit input styling */
+.inline-edit-input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-size: inherit;
+  font-weight: inherit;
+  font-family: var(--font-system);
+  color: var(--text-primary);
+  background: var(--search-bg);
+  border: 2px solid var(--accent-primary);
+  border-radius: var(--radius-md);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--search-focus);
 }
 
 /* =============================================================================
@@ -655,6 +776,38 @@ nav a:focus-visible,
   animation: pulse 2s var(--ease-in-out) infinite;
 }
 
+/* Full-page loading overlay when navigating to bookmark */
+.page-loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.page-loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@media (prefers-color-scheme: dark) {
+  .page-loading-overlay {
+    background: rgba(0, 0, 0, 0.7);
+  }
+}
+
 /* =============================================================================
    UTILITY CLASSES
    ============================================================================= */
@@ -706,6 +859,15 @@ nav a:focus-visible,
   }
   50% {
     opacity: 0.5;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -825,7 +987,6 @@ nav a:focus-visible,
   opacity: 0.3 !important;
   background: rgba(59, 130, 246, 0.1) !important;
   border: 2px dashed var(--accent-primary, #3b82f6) !important;
-  transform: scale(0.95) !important;
   transition: all 0.2s ease !important;
 }
 
@@ -833,19 +994,34 @@ nav a:focus-visible,
 .sortable-ghost {
   opacity: 1 !important;
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%) !important;
-  border: 3px solid var(--accent-primary, #3b82f6) !important;
+  border: 2px dashed var(--accent-primary, #3b82f6) !important;
   border-radius: var(--radius-lg, 8px);
-  min-height: 150px;
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4) inset !important;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3) inset !important;
   animation: ghostPulse 1s ease-in-out infinite;
+  /* Remove fixed height - let it inherit from the original element */
+}
+
+/* Specific ghost styling for folders (nav elements) */
+nav[data-folder-id].sortable-ghost {
+  /* Folders maintain their natural height */
+  min-height: unset;
+ }
+
+/* Specific ghost styling for bookmarks */
+.bookmark-item.sortable-ghost {
+  /* Bookmarks maintain their compact size */
+  min-height: unset;
+  height: auto;
+  padding: 0; /* Bookmarks have no padding, only their child <a> has padding */
+  margin: var(--space-1) 0; /* Maintain original margin */
 }
 
 @keyframes ghostPulse {
   0%, 100% {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4) inset;
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3) inset;
   }
   50% {
-    box-shadow: 0 0 30px rgba(59, 130, 246, 0.6) inset;
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.5) inset;
   }
 }
 
@@ -875,26 +1051,12 @@ nav[data-folder-id] {
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
-/* Bookmark drop target highlighting */
-nav.bookmark-drop-target {
-  background: rgba(59, 130, 246, 0.1);
-  border: 2px dashed var(--accent-primary, #3b82f6);
-  transform: scale(1.02);
-}
-
 /* =============================================================================
    DRAG HANDLE
    ============================================================================= */
 
-.bookmark-item[draggable='true'] {
-  cursor: move;
-  user-select: none;
-  transition: transform var(--duration-fast) var(--ease-out);
-}
-
-.bookmark-item[draggable='true']:active {
-  cursor: grabbing;
-}
+/* Note: Bookmark dragging is now handled by SortableJS */
+/* SortableJS provides its own cursor management via .sortable-chosen class */
 
 nav[draggable='true'] {
   cursor: move;
