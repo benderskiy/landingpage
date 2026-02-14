@@ -219,7 +219,7 @@
 
   /* Dark mode action buttons */
   .action-btn-delete {
-    background: rgba(239, 68, 68, 0.15);
+    background: transparent;
   }
 
   .action-btn-delete:hover {
@@ -699,7 +699,7 @@ body.edit-mode .drag-handle {
 }
 
 .action-btn-delete {
-  background: rgba(239, 68, 68, 0.1);
+  background: transparent;
   color: var(--accent-danger);
 }
 
