@@ -22,7 +22,7 @@
 
 ### Quick Install (Recommended)
 
-1. Download the latest `landingpage-extension.zip` from [Releases](https://github.com/benderskiy/landingpage/releases)
+1. **[Download landingpage-extension.zip](https://github.com/benderskiy/landingpage/releases/latest/download/landingpage-extension.zip)**
 2. Extract the zip file
 3. Open Chrome and go to `chrome://extensions/`
 4. Enable **Developer mode** (toggle in top right)
