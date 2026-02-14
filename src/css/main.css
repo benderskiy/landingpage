@@ -343,11 +343,12 @@ header::after {
   /* Spacing */
   padding: 0 var(--space-6) 0 var(--space-16);
 
-  /* Search Icon */
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23718096" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>');
+  /* Search Icon - Use extension star icon */
+  background-image: url('/icons/icon48.png');
   background-repeat: no-repeat;
-  background-position: var(--space-5) center;
-  background-size: 24px;
+  background-position: var(--space-4) center;
+  background-size: 26px;
+  image-rendering: pixelated;
 
   /* Transitions */
   transition: all var(--duration-base) var(--ease-out);
