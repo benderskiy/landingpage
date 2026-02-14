@@ -1,8 +1,9 @@
+<h1 align="center">Landingpage</h1>
+
 <p align="center">
   <img src="icons/icon128.png" alt="Landingpage Icon" width="128" height="128">
 </p>
 
-<h1 align="center">Landingpage</h1>
 
 <p align="center">
   Replace your Chrome new tab with a beautiful, organized bookmark dashboard featuring fuzzy search and drag-and-drop organization.
