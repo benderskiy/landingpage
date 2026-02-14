@@ -3,14 +3,6 @@ export interface FolderOrderState {
   version: string;
 }
 
-export interface FolderSnapshot {
-  folderId: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
 export interface DragState {
   draggedElement: HTMLElement | null;
   draggedType: 'bookmark' | 'folder' | null;
@@ -20,7 +12,4 @@ export interface DragState {
   dropIndicator: HTMLElement | null; // For bookmark drag
   visualIndicator: HTMLElement | null; // For folder drag
   lastIndicatorPosition: string | null;
-  folderSnapshots: FolderSnapshot[];
-  calculatedInsertIndex: number | null;
-  lastUpdateTime: number;
 }

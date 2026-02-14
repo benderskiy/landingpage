@@ -1,7 +1,17 @@
 import { Bookmark, Folder, BookmarksData } from '../types';
+import { SYSTEM_FOLDERS } from '../constants';
+
+// Check if Chrome extension APIs are available
+function isChromeExtensionContext(): boolean {
+  return typeof chrome !== 'undefined' && chrome.bookmarks?.getTree !== undefined;
+}
 
 export async function getBookmarks(): Promise<BookmarksData> {
   try {
+    if (!isChromeExtensionContext()) {
+      throw new Error('Chrome bookmarks API not available. This extension must be loaded as a Chrome extension.');
+    }
+
     const bookmarksTree: chrome.bookmarks.BookmarkTreeNode[] = await chrome.bookmarks.getTree();
 
     if (!bookmarksTree.length) {
@@ -24,14 +34,7 @@ function getFolders(tree: chrome.bookmarks.BookmarkTreeNode): BookmarksData {
   const isSystemFolder = (title: string | undefined): boolean => {
     if (!title) return true; // Folders without title are system folders
     const lowerTitle = title.toLowerCase();
-    const systemFolderNames = [
-      'bookmarks bar',
-      'bookmarks toolbar',
-      'other bookmarks',
-      'mobile bookmarks',
-      'reading list'
-    ];
-    return systemFolderNames.some(name => lowerTitle.includes(name));
+    return SYSTEM_FOLDERS.some(name => lowerTitle.includes(name));
   };
 
   if (tree.children) {

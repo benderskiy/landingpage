@@ -15,9 +15,6 @@ export class AppState {
     dropIndicator: null,
     visualIndicator: null,
     lastIndicatorPosition: null,
-    folderSnapshots: [],
-    calculatedInsertIndex: null,
-    lastUpdateTime: 0,
   };
 
   private constructor() {}
@@ -39,9 +36,6 @@ export class AppState {
       dropIndicator: null,
       visualIndicator: null,
       lastIndicatorPosition: null,
-      folderSnapshots: [],
-      calculatedInsertIndex: null,
-      lastUpdateTime: 0,
     };
   }
 }

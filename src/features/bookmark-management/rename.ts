@@ -1,4 +1,3 @@
-import { updateBookmark } from '../../services/chrome-api.service';
 import { showSuccessMessage, showErrorMessage } from '../../ui/notifications';
 
 /**
@@ -27,8 +26,13 @@ function makeElementEditable(
   onSave: (newValue: string) => Promise<void>,
   onCancel: () => void
 ): void {
-  // Store original element
-  const originalElement = element.cloneNode(true) as HTMLElement;
+  // Prevent multiple edit sessions on the same element
+  if (element.querySelector('.inline-edit-input')) {
+    return;
+  }
+
+  // Store original HTML for restoration
+  const originalHTML = element.innerHTML;
 
   // Create input field
   const input = document.createElement('input');
@@ -36,14 +40,41 @@ function makeElementEditable(
   input.className = 'inline-edit-input';
   input.value = currentValue;
 
-  // Replace element with input
-  element.replaceWith(input);
+  // Clear element and insert input
+  element.innerHTML = '';
+  element.appendChild(input);
 
   // Focus and select text
   input.focus();
   input.select();
 
   let isProcessing = false;
+
+  // Restore element to original state
+  const restoreElement = (newText?: string) => {
+    element.innerHTML = originalHTML;
+    if (newText !== undefined) {
+      // Update text content while preserving child elements (like favicon)
+      // Find and update only text nodes, or set textContent of the last text node
+      const textNodes = Array.from(element.childNodes).filter(
+        (node) => node.nodeType === Node.TEXT_NODE
+      );
+
+      if (textNodes.length > 0) {
+        // Update the text node(s)
+        textNodes.forEach((node) => {
+          node.textContent = newText;
+        });
+      } else {
+        // No text nodes found, append as text node to preserve other elements
+        const textNode = document.createTextNode(newText);
+        element.appendChild(textNode);
+      }
+    } else {
+      // Restore original content as-is
+      element.innerHTML = originalHTML;
+    }
+  };
 
   // Handle save
   const handleSave = async () => {
@@ -62,7 +93,7 @@ function makeElementEditable(
 
     // No change
     if (newValue === currentValue) {
-      input.replaceWith(originalElement);
+      restoreElement();
       onCancel();
       return;
     }
@@ -73,13 +104,7 @@ function makeElementEditable(
 
     try {
       await onSave(newValue);
-
-      // Update the original element with new value
-      if (originalElement instanceof HTMLHeadingElement || originalElement.tagName === 'A') {
-        originalElement.textContent = newValue;
-      }
-
-      input.replaceWith(originalElement);
+      restoreElement(newValue);
     } catch (error) {
       isProcessing = false;
       input.disabled = false;
@@ -92,7 +117,7 @@ function makeElementEditable(
   // Handle cancel
   const handleCancel = () => {
     if (isProcessing) return;
-    input.replaceWith(originalElement);
+    restoreElement();
     onCancel();
   };
 
@@ -128,7 +153,7 @@ export async function handleRenameFolder(
 
   const onSave = async (newTitle: string) => {
     try {
-      await updateBookmark(folderId, { title: newTitle });
+      await chrome.bookmarks.update(folderId, { title: newTitle });
       showSuccessMessage(`Renamed to "${newTitle}"`);
     } catch (error) {
       console.error('Failed to rename folder:', error);
@@ -155,7 +180,7 @@ export async function handleRenameBookmark(
 
   const onSave = async (newTitle: string) => {
     try {
-      await updateBookmark(bookmarkId, { title: newTitle });
+      await chrome.bookmarks.update(bookmarkId, { title: newTitle });
       showSuccessMessage(`Renamed to "${newTitle}"`);
     } catch (error) {
       console.error('Failed to rename bookmark:', error);
