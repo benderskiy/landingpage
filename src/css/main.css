@@ -480,13 +480,7 @@ nav {
   max-width: 400px;
   padding: var(--padding-folder);
 
-  /* Animation */
-  animation: fadeIn var(--duration-slow) var(--ease-out) both;
-
-  /* Transitions - smooth movement during drag */
-  transition: transform var(--duration-fast) var(--ease-out),
-              opacity var(--duration-fast) var(--ease-out),
-              box-shadow var(--duration-fast) var(--ease-out);
+  /* NO animation on load - instant appearance */
 
   /* Performance */
   contain: layout style paint;
@@ -497,16 +491,20 @@ nav:hover {
   box-shadow: var(--shadow-xl), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
   border-color: var(--accent-primary);
   will-change: transform;
+  transition: transform var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out);
 }
 
-/* Staggered Animation for First 6 Folders */
-nav:nth-child(1) { animation-delay: 0ms; }
-nav:nth-child(2) { animation-delay: 50ms; }
-nav:nth-child(3) { animation-delay: 100ms; }
-nav:nth-child(4) { animation-delay: 150ms; }
-nav:nth-child(5) { animation-delay: 200ms; }
-nav:nth-child(6) { animation-delay: 250ms; }
-nav:nth-child(n+7) { animation-delay: 300ms; }
+/* Disable hover effects during drag to prevent flicker */
+nav.sortable-chosen:hover,
+nav.sortable-ghost:hover {
+  transform: none;
+  box-shadow: var(--shadow-md), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  transition: none;
+}
+
+/* Staggered Animation REMOVED - folders appear instantly */
 
 /* =============================================================================
    FOLDER STRUCTURE
@@ -1027,7 +1025,7 @@ nav a:focus-visible,
   opacity: 0.3 !important;
   background: rgba(59, 130, 246, 0.1) !important;
   border: 2px dashed var(--accent-primary, #3b82f6) !important;
-  transition: all 0.2s ease !important;
+  /* NO transition - prevents flicker when class is removed on drop */
 }
 
 /* Ghost element (placeholder showing where item will drop) */
@@ -1086,10 +1084,10 @@ nav.dragging .drag-handle {
   color: var(--accent-primary, #3b82f6);
 }
 
-/* Smooth transitions for folder reordering */
-nav[data-folder-id] {
-  transition: transform 0.2s ease, opacity 0.2s ease;
-}
+/* NOTE: Do NOT add transition to nav[data-folder-id] here.
+   SortableJS uses transforms internally for positioning during drag.
+   CSS transitions on transform cause flickering when drag ends.
+   The hover transition is already defined on nav:hover above. */
 
 /* =============================================================================
    DRAG HANDLE

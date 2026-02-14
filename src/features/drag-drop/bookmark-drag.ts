@@ -1,5 +1,4 @@
 import Sortable from 'sortablejs';
-import { moveBookmark } from '../../services/chrome-api.service';
 import { showSuccessMessage, showErrorMessage } from '../../ui/notifications';
 import { refreshFolders } from '../../main';
 
@@ -20,8 +19,7 @@ export function initBookmarkDrag(): void {
     // Create Sortable instance for this folder's bookmarks
     const sortableInstance = Sortable.create(folder, {
       group: 'bookmarks', // Allow dragging between folders
-      animation: 200,
-      easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      animation: 0,
       ghostClass: 'sortable-ghost',
       chosenClass: 'sortable-chosen',
       dragClass: 'sortable-drag',
@@ -32,22 +30,15 @@ export function initBookmarkDrag(): void {
       fallbackOnBody: true,
       swapThreshold: 0.65,
 
-      onStart: (evt) => {
-        if (evt.item) {
-          evt.item.style.opacity = '0.5';
-        }
-      },
+      // Note: Do NOT manipulate opacity in onStart/onEnd
+      // The CSS classes handle all visual feedback to prevent flicker
 
       onEnd: async (evt) => {
-        if (evt.item) {
-          evt.item.style.opacity = '1';
-        }
 
         // Get bookmark and folder information
         const bookmarkId = evt.item.getAttribute('data-bookmark-id');
         const sourceFolderId = evt.from.getAttribute('data-folder-id');
         const targetFolderId = evt.to.getAttribute('data-folder-id');
-        const newIndex = evt.newIndex;
 
         if (!bookmarkId || !targetFolderId) {
           console.error('Missing bookmark or folder ID');
@@ -62,11 +53,25 @@ export function initBookmarkDrag(): void {
           return;
         }
 
+        // Calculate the actual bookmark index (excluding folder header and non-bookmark elements)
+        // SortableJS newIndex includes all children, but we need index relative to bookmarks only
+        let actualIndex = 0;
+
+        if (evt.newIndex !== undefined) {
+          // Count how many bookmark items come before the new position
+          for (let i = 0; i < evt.newIndex && i < evt.to.children.length; i++) {
+            const child = evt.to.children[i];
+            if (child.classList.contains('bookmark-item')) {
+              actualIndex++;
+            }
+          }
+        }
+
         try {
           // Move bookmark to new position/folder
-          await moveBookmark(bookmarkId, {
+          await chrome.bookmarks.move(bookmarkId, {
             parentId: targetFolderId,
-            index: newIndex,
+            index: actualIndex,
           });
 
           if (folderChanged) {
