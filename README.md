@@ -13,6 +13,8 @@
 
 - Visual bookmark cards organized by folder
 - Fuzzy search across all bookmarks (powered by Fuse.js)
+- **Instant search** - Just start typing on the new tab page
+- **Omnibox search** - Type `lp` + Tab in address bar to search bookmarks
 - Drag-and-drop folder and bookmark reordering
 - Edit mode for managing bookmarks
 - Create and delete folders
@@ -57,20 +59,28 @@
 
 5. Open a new tab to see your bookmarks
 
-## Development
+## Usage
 
-### Build Commands
+### Searching Bookmarks
 
-- `npm run build` - Build production extension
-- `npm run type-check` - Run TypeScript type checking
+**On the new tab page:**
+- Just start typing anywhere - the search activates automatically
+- Press Enter to open the first result
 
-### Testing Changes
+**From any tab (Omnibox):**
+1. Type `lp` in the address bar
+2. Press Tab (you'll see "Search bookmarks for:")
+3. Type your search query
+4. Select a bookmark from suggestions or press Enter
 
-1. Make code changes
-2. Run `npm run build`
-3. Go to `chrome://extensions/`
-4. Click reload icon on the extension card
-5. Refresh your new tab
+### Edit Mode
+
+Click the "Edit" button to:
+- Drag and drop folders to reorder
+- Drag bookmarks between folders
+- Rename folders and bookmarks (click on title)
+- Delete folders and bookmarks
+- Create new folders
 
 ## Project Structure
 
@@ -90,6 +100,7 @@ src/
 │   └── notifications.ts
 ├── state/             # Application state management
 ├── types/             # TypeScript type definitions
+├── background.ts      # Omnibox search service worker
 ├── constants.ts       # Centralized constants
 └── main.ts            # Entry point and orchestration
 ```

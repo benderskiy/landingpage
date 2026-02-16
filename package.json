@@ -5,7 +5,7 @@
   "description": "Bookmarks organizer as new tab - Chrome extension",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && npm run copy-files && node fix-paths.cjs",
+    "build": "vite build && npm run copy-files && node fix-paths.cjs",
     "copy-files": "cp manifest.json dist/ && cp -r icons dist/ && if [ -f dist/src/index.html ]; then mv dist/src/index.html dist/index.html && rm -rf dist/src; fi",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",

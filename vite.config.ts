@@ -6,9 +6,18 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
-      input: 'src/index.html',
+      input: {
+        main: 'src/index.html',
+        background: 'src/background.ts',
+      },
       output: {
-        entryFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: (chunkInfo) => {
+          // Background script needs a fixed name for manifest.json
+          if (chunkInfo.name === 'background') {
+            return 'background.js';
+          }
+          return 'assets/[name]-[hash].js';
+        },
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
       },

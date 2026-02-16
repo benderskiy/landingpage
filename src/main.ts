@@ -71,6 +71,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
     });
+
+    // Auto-focus search when typing anywhere on the page
+    // This allows users to just start typing without clicking the search field
+    document.addEventListener('keydown', (e: KeyboardEvent) => {
+      const searchInput = document.querySelector<HTMLInputElement>('#site-search');
+      if (!searchInput) return;
+
+      // Skip if already focused on an input or if modifier keys are pressed
+      const activeElement = document.activeElement;
+      const isInputFocused = activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA';
+      if (isInputFocused || e.ctrlKey || e.metaKey || e.altKey) return;
+
+      // Skip special keys
+      const skipKeys = ['Tab', 'Enter', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Shift', 'Control', 'Alt', 'Meta', 'CapsLock'];
+      if (skipKeys.includes(e.key)) return;
+
+      // Focus search and let the key event pass through
+      searchInput.focus();
+    });
   } catch (error) {
     console.error('Initialization error:', error);
     showErrorMessage('Failed to load bookmarks. Please reload the page.');

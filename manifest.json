@@ -1,7 +1,7 @@
 {
   "name": "Landingpage",
   "version": "1.0",
-  "description": "Bookmarks orginizer as new tab",
+  "description": "Bookmarks organizer as new tab",
   "manifest_version": 3,
   "permissions": [
     "history",
@@ -26,5 +26,11 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "omnibox": {
+    "keyword": "lp"
+  },
+  "background": {
+    "service_worker": "background.js"
   }
 }
